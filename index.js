@@ -165,12 +165,12 @@ class Game {
 
     checkGameState() {
         if (this.hero.health <= 0) {
-            $('.debug').append('<p>Игра окончена! Герой погиб.</p>');
-            alert('Игра окончена! Герой погиб.');
+            $('.debug').append('<p>Game over! Hero dierd</p>');
+            alert('Game over! Hero dierd');
             return true;
         } else if (this.enemies.length === 0) {
-            $('.debug').append('<p>Победа! Все враги побеждены!</p>');
-            alert('Победа! Все враги побеждены!');
+            $('.debug').append('<p>Game over! No more enemies!</p>');
+            alert('Game over! No more enemies!');
             return true;
         }
         return false;
@@ -255,7 +255,6 @@ class Game {
         this.checkGameState();
     }
 
-
     // enemies movement handling
     moveEnemies() {
         for (let enemy of this.enemies) {
@@ -264,10 +263,15 @@ class Game {
                 { x: -1, y: 0 }, { x: 1, y: 0 }
             ];
 
+            // Check for attack opportunity (adjacent to hero)
             for (let dir of directions) {
-                if (enemy.x + dir.x === this.hero.x && enemy.y + dir.y === this.hero.y) {
+                const adjX = enemy.x + dir.x;
+                const adjY = enemy.y + dir.y;
+                if (adjX === this.hero.x && adjY === this.hero.y) {
                     this.hero.health -= 5;
-                    break;
+                    this.render(); // Immediate render to show hero health change
+                    this.checkGameState();
+                    return; // Skip movement if attacking
                 }
             }
 
