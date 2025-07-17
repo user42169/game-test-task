@@ -9,7 +9,8 @@ const MAX_CORRIDORS = 5;
 const POTIONS_COUNT = 10;
 const SWORDS_COUNT = 2;
 const ENEMIES_COUNT = 10;
-const TILE_SIZE = 50; // Matches CSS tile size (50x50px)
+// const TILE_SIZE = 50;
+const TILE_SIZE = 25
 
 const TILES = {
     WALL: 'W',
@@ -25,10 +26,18 @@ class Game {
         this.map = [];
         this.hero = { x: 0, y: 0, strength: 1, health: 100 };
         this.enemies = [];
+        this.canvas = null;
+        this.ctx = null;
+        this.images = {};
+        this.imagesLoaded = false;
+
     }
 
-    init() {
+    async init() {
         try {
+            this.canvas = $('.field')[0];
+            this.ctx = this.canvas.getContext('2d');
+            await this.loadImages();
             this.initializeMap();
             this.generateRooms();
             this.generateCorridors();
@@ -43,6 +52,39 @@ class Game {
             $('.debug').append(`<p>Error: ${e.message}. Check image paths and console.</p>`);
         }
     }
+
+    // load all images
+    async loadImages() {
+        const imagePaths = {
+            [TILES.FLOOR]: 'images/tile-.png',
+            [TILES.WALL]: 'images/tile-W.png',
+            [TILES.HERO]: 'images/tile-P.png',
+            [TILES.ENEMY]: 'images/tile-E.png',
+            [TILES.POTION]: 'images/tile-HP.png',
+            [TILES.SWORD]: 'images/tile-SW.png'
+        };
+
+        const loadImage = (src) => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = src;
+                img.onload = () => resolve(img);
+                img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+            });
+        };
+
+
+        try {
+            for (let tile in imagePaths) {
+                this.images[tile] = await loadImage(imagePaths[tile]);
+            }
+            this.imagesLoaded = true;
+            console.log('Images loaded successfully');
+        } catch (e) {
+            throw new Error(`Image loading failed: ${e.message}`);
+        }
+    }
+
 
     initializeMap() {
         for (let y = 0; y < MAP_HEIGHT; y++) {
@@ -135,33 +177,32 @@ class Game {
     }
 
     render() {
-        const $field = $('.field').empty();
+
+        if (!this.imagesLoaded) {
+            console.warn('Images not loaded, skipping render');
+            return;
+        }
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
         for (let y = 0; y < MAP_HEIGHT; y++) {
             for (let x = 0; x < MAP_WIDTH; x++) {
                 const tile = this.map[y][x];
-                let tileClass = 'tile';
-                if (tile === TILES.WALL) tileClass += ' tileW';
-                else if (tile === TILES.HERO) tileClass += ' tileP';
-                else if (tile === TILES.ENEMY) tileClass += ' tileE';
-                else if (tile === TILES.POTION) tileClass += ' tileHP';
-                else if (tile === TILES.SWORD) tileClass += ' tileSW';
-
-                const $tile = $('<div>').addClass(tileClass).css({
-                    left: x * TILE_SIZE + 'px',
-                    top: y * TILE_SIZE + 'px'
-                });
-
-                // Add health bar for hero and enemies
-                if (tile === TILES.HERO || tile === TILES.ENEMY) {
-                    const health = tile === TILES.HERO ? this.hero.health : this.enemies.find(e => e.x === x && e.y === y).health;
-                    const healthWidth = Math.max(0, (health / 100) * TILE_SIZE); // Scale health to tile width
-                    $tile.append($('<div>').addClass('health').css('width', healthWidth + 'px'));
+                const img = this.images[tile];
+                if (img) {
+                    this.ctx.drawImage(img, x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
                 }
 
-                $field.append($tile);
+                // Draw health bars for hero and enemies
+                if (tile === TILES.HERO || tile === TILES.ENEMY) {
+                    const health = tile === TILES.HERO ? this.hero.health : this.enemies.find(e => e.x === x && e.y === y).health;
+                    const healthWidth = Math.max(0, (health / 100) * TILE_SIZE);
+                    this.ctx.fillStyle = tile === TILES.HERO ? '#00ff00' : '#ff0000';
+                    this.ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, healthWidth, 3);
+                }
             }
         }
     }
+
 
     checkGameState() {
         if (this.hero.health <= 0) {
